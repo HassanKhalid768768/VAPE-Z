@@ -12,7 +12,7 @@ const PaymentSuccess = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { userToken } = useSelector(state => state.authReducer);
-  const [verifyPayment, { isLoading, isError }] = useVerifyPaymentMutation();
+  const [verifyPayment, { isLoading, isError, isSuccess }] = useVerifyPaymentMutation();
 
   useEffect(() => {
     if (!userToken) {
@@ -39,6 +39,10 @@ const PaymentSuccess = () => {
 
   if (isError) {
     navigate('/cart');
+    return null;
+  }
+
+  if (!isSuccess && !isLoading && !isError) {
     return null;
   }
 
