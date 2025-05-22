@@ -22,16 +22,18 @@ const paymentService = createApi({
           };
         },
       }),
-      verifyPayment: builder.query({
-        query: (id) => {
-          return {
-            url: `verify-payment/${id}`,
-            method: "GET",
-          };
-        },
+      verifyPaymentStatus: builder.query({
+        query: (id) => ({
+          url: `verify-payment/${id}`,
+          method: "GET",
+          credentials: "include"
+        }),
       }),
     };
   },
 });
-export const { useSendPaymentMutation, useVerifyPaymentQuery } = paymentService;
+export const { 
+  useSendPaymentMutation, 
+  useVerifyPaymentStatusQuery 
+} = paymentService;
 export default paymentService;

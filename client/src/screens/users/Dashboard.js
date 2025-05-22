@@ -5,25 +5,25 @@ import toast, { Toaster } from "react-hot-toast";
 import Nav from "../../components/home/Nav";
 import Header from "../../components/home/Header";
 import AccountList from "../../components/home/AccountList";
-import { useVerifyPaymentQuery } from "../../store/services/paymentService";
+import { useVerifyPaymentStatusQuery } from "../../store/services/paymentService";
 import { emptyCart } from "../../store/reducers/cartReducer";
 const Dashboard = () => {
   const { user } = useSelector((state) => state.authReducer);
   const [params] = useSearchParams();
   const id = params.get("session_id");
-  const { data, isSuccess } = useVerifyPaymentQuery(id, {
+  const { data, isSuccess } = useVerifyPaymentStatusQuery(id, {
     skip: id ? false : true,
   });
   const dispatch = useDispatch();
   const navigate = useNavigate();
   useEffect(() => {
-    if (isSuccess) {
+    if (isSuccess && data?.msg) {
       localStorage.removeItem("cart");
       toast.success(data.msg);
       dispatch(emptyCart());
       navigate("/user");
     }
-  });//, [isSuccess, data.msg, dispatch, navigate]
+  }, [isSuccess, data, dispatch, navigate]);
   return (
     <>
       <Nav />

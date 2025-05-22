@@ -70,7 +70,7 @@ class PaymentController {
       }),
       customer: customer.id,
       mode: "payment",
-      success_url: `${process.env.CLIENT}/user?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${process.env.CLIENT}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT}/cart`,
     });
     res.json({ url: session.url });
@@ -151,13 +151,35 @@ class PaymentController {
   async paymentVerify(req, res) {
     const { id } = req.params;
     try {
+      // Verify session exists
+      if (!id) {
+        return res.status(400).json({
+          error: "Session ID is required"
+        });
+      }
+
+      // Retrieve session from Stripe
       const session = await stripe.checkout.sessions.retrieve(id);
+      
+      // Check payment status
+      if (session.payment_status !== 'paid') {
+        return res.status(400).json({
+          error: "Payment has not been completed"
+        });
+      }
+
+      // Return success response
       return res.status(200).json({
-        msg: "Your payment has verfied successfully",
+        msg: "Your payment has been verified successfully",
         status: session.payment_status,
+        success: true
       });
     } catch (error) {
-      return res.status(500).json(error.message);
+      console.error('Payment verification error:', error);
+      return res.status(500).json({
+        error: "Payment verification failed",
+        details: error.message
+      });
     }
   }
 }
