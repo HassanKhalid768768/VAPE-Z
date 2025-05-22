@@ -10,6 +10,7 @@ const AdminLogin = () => {
         email: '',
         password: ''
     })
+    const [adminError, setAdminError] = useState('')
     const handleInputs = e => {
         setState({...state, [e.target.name]: e.target.value })
     }
@@ -23,11 +24,16 @@ const AdminLogin = () => {
     const dispatch = useDispatch();
     useEffect(() => {
         if(response.isSuccess) {
-            localStorage.setItem('admin-token', response?.data?.token);
-            dispatch(setAdminToken(response?.data?.token));
-            navigate('/dashboard/products');
+            if(response?.data?.admin) {
+                localStorage.setItem('admin-token', response?.data?.token);
+                dispatch(setAdminToken(response?.data?.token));
+                navigate('/dashboard/products');
+                setAdminError('');
+            } else {
+                setAdminError('Access denied! You are not authorized as an admin.');
+            }
         }
-    }, [dispatch, navigate, response?.data?.token, response.isSuccess])
+    }, [dispatch, navigate, response])
     return(
         <div className="bg-black1 h-screen flex justify-center items-center">
         <ul className="absolute top-0 right-0 mr-5 mt-6 flex">
@@ -44,6 +50,11 @@ const AdminLogin = () => {
               <p className="alert-danger">{error.msg}</p>
             </div>
           ))}
+          {adminError && (
+            <div>
+              <p className="alert-danger">{adminError}</p>
+            </div>
+          )}
           <div className="mb-4 mt-4">
             <input type="email" name="email" className="w-full bg-black1 p-4 rounded outline-none text-white" onChange={handleInputs} value={state.email} placeholder="Enter email..." />
           </div>
