@@ -8,20 +8,45 @@ const productRoutes = require("./routes/productRoutes");
 const paymentRoutes = require("./routes/payment");
 const orderRoutes = require("./routes/orderRoutes");
 const app = express();
+const PaymentController = require("./controllers/PaymentController");
 
 // database connection
 connect();
-app.use(cors());
+
+// Configure CORS with credentials support
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl requests)
+    if(!origin) return callback(null, true);
+    
+    // Define allowed origins
+    const allowedOrigins = [
+      process.env.CLIENT || 'http://localhost:3000', // Default if env not set
+      'http://localhost:3001'
+    ];
+    
+    if(allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, origin);
+    } else {
+      console.log(`CORS blocked origin: ${origin}`);
+      // For development, you can allow all origins
+      // callback(null, origin);
+      callback(new Error(`CORS not allowed for origin: ${origin}`));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'stripe-signature']
+}));
+
+// Webhook route must come before body parser middleware
 app.post(
   "/api/webhook",
-  express.json({
-    verify: (req, res, buf) => {
-      req.rawBody = buf.toString();
-    },
-  })
+  express.raw({ type: 'application/json' }),
+  PaymentController.checkOutSession
 );
 
-// middleware
+// Regular middleware for other routes
 app.use(express.json());
 
 app.get("/", (req, res) => {

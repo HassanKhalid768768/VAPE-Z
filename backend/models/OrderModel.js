@@ -31,6 +31,35 @@ const orderSchema = Schema(
       default: false,
       type: Boolean,
     },
+    // Payment-related fields
+    payment_intent: {
+      type: String,
+      required: true,
+    },
+    payment_status: {
+      type: String,
+      required: true,
+    },
+    customer_details: {
+      type: Object,
+      required: true,
+    },
+    shipping_details: {
+      type: Object,
+      required: false,
+    },
+    amount_total: {
+      type: Number,
+      required: true,
+    },
+    currency: {
+      type: String,
+      required: true,
+    },
+    created: {
+      type: Date,
+      default: Date.now,
+    },
   },
   { timestamps: true }
 );
