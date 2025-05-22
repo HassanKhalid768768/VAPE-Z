@@ -1,6 +1,6 @@
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import currency from "currency-formatter";
 import { BsTrash } from "react-icons/bs";
 import { motion } from "framer-motion";
@@ -19,6 +19,13 @@ const Cart = () => {
   const { cart, total } = useSelector((state) => state.cartReducer);
   const { userToken, user } = useSelector((state) => state.authReducer);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  
+  // Add error state
+  const [error, setError] = useState(null);
+  // Add payment processing state
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const inc = (id) => {
     dispatch(incQuantity(id));
   };
@@ -31,22 +38,79 @@ const Cart = () => {
       dispatch(removeItem(id));
     }
   };
-  const navigate = useNavigate();
+
   const [doPayment, response] = useSendPaymentMutation();
-  console.log("payment response", response);
-  console.log(user);
-  const pay = () => {
-    if (userToken) {
-      doPayment({ cart, id: user.id });
-    } else {
-      navigate("/login");
+  
+  // Improved payment handling with error management
+  const pay = async () => {
+    try {
+      setError(null);
+      setIsProcessing(true);
+
+      if (!userToken) {
+        // Store the cart state in sessionStorage for after login
+        sessionStorage.setItem('pendingCheckout', 'true');
+        navigate("/login");
+        return;
+      }
+
+      if (cart.length === 0) {
+        setError("Your cart is empty");
+        setIsProcessing(false);
+        return;
+      }
+
+      // Prepare the cart data for payment
+      const paymentData = {
+        cart: cart.map(item => ({
+          _id: item._id,
+          title: item.title,
+          price: item.price,
+          discount: item.discount,
+          image1: item.image1,
+          quantity: item.quantity,
+          size: item.size,
+          color: item.color
+        })),
+        id: user.id
+      };
+
+      const result = await doPayment({ cart, id: user.id }).unwrap();
+      
+      if (result?.url) {
+        // Open Stripe checkout in a new tab
+        window.open(result.url, '_self');
+      } else {
+        throw new Error("Invalid response from payment service");
+      }
+    } catch (err) {
+      console.error('Payment initiation error:', err);
+      setError(err.message || "Failed to initiate payment. Please try again.");
+    } finally {
+      setIsProcessing(false);
     }
   };
+
+  // Clear error on cart changes
   useEffect(() => {
-    if (response?.isSuccess) {
-      window.location.href = response?.data?.url;
-    }
-  }, [response]);
+    if (error) setError(null);
+  }, [cart]);
+
+  // Error message component
+  const ErrorMessage = ({ message }) => (
+    <div className="bg-red-50 border border-red-200 rounded-md p-4 mt-4">
+      <div className="flex">
+        <div className="flex-shrink-0">
+          <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+          </svg>
+        </div>
+        <div className="ml-3">
+          <p className="text-sm text-red-700">{message}</p>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -56,6 +120,8 @@ const Cart = () => {
         animate={{ opacity: 1 }}
         className="my-container mt-28"
       >
+        {error && <ErrorMessage message={error} />}
+        
         {cart.length > 0 ? (
           <>
             <div className="table-container">
@@ -136,10 +202,19 @@ const Cart = () => {
                   {currency.format(total, { code: "USD" })}
                 </span>
                 <button
-                  className="btn bg-indigo-600 text-sm font-medium py-2.5"
+                  className={`btn ${isProcessing ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'} text-sm font-medium py-2.5 transition-colors duration-200`}
                   onClick={pay}
+                  disabled={isProcessing}
                 >
-                  {response.isLoading ? "Loading..." : "checkout"}
+                  {isProcessing ? (
+                    <div className="flex items-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processing...
+                    </div>
+                  ) : "Checkout"}
                 </button>
               </div>
             </div>

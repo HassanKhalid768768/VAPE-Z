@@ -18,6 +18,7 @@ import CatProducts from "../screens/home/CatProducts";
 import Product from "../screens/home/Product";
 import SearchProducts from "../screens/home/SearchProducts";
 import Cart from "../screens/home/Cart";
+import PaymentSuccess from "../screens/home/PaymentSuccess";
 import Orders from "../screens/dashboard/Orders";
 import OrderDetails from "../screens/dashboard/OrderDetails";
 import UserOrders from "../screens/users/UserOrders";
@@ -35,6 +36,7 @@ const Routing = () => {
           element={<SearchProducts />}
         />
         <Route path="cart" element={<Cart />} />
+        <Route path="payment/success" element={<PaymentSuccess />} />
         <Route path="product/:name" element={<Product />} />
         <Route element={<UserAuthRoute />}>
           <Route path="login" element={<Login />} />

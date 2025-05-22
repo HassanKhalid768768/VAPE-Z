@@ -38,6 +38,19 @@ class Product {
           }
           if (errors.length === 0) {
             const images = {};
+            const __dirname = path.resolve();
+            const imagesDir = path.join(__dirname, '..', 'client', 'public', 'images');
+            try {
+                // Ensure the images directory exists
+                if (!fs.existsSync(imagesDir)) {
+                    fs.mkdirSync(imagesDir, { recursive: true });
+                }
+            } catch (err) {
+                console.error('Error creating images directory:', err);
+                return res.status(500).json({ 
+                    errors: [{ msg: 'Server error: Failed to create image directory' }] 
+                });
+            }
             for (let i = 0; i < Object.keys(files).length; i++) {
               const mimeType = files[`image${i + 1}`].mimetype;
               const extension = mimeType.split("/")[1].toLowerCase();
@@ -47,15 +60,22 @@ class Product {
                 extension === "png"
               ) {
                 const imageName = uuidv4() + `.${extension}`;
-                const __dirname = path.resolve();
-                const newPath =
-                  __dirname + `/../client/public/images/${imageName}`;
+                const newPath = path.join(__dirname, '..', 'client', 'public', 'images', imageName);
                 images[`image${i + 1}`] = imageName;
-                fs.copyFile(files[`image${i + 1}`].filepath, newPath, (err) => {
-                  if (err) {
-                    console.log(err);
-                  }
-                });
+                try {
+                    await new Promise((resolve, reject) => {
+                        fs.copyFile(files[`image${i + 1}`].filepath, newPath, (err) => {
+                            if (err) {
+                                console.error('Error copying file:', err);
+                                reject(err);
+                            } else {
+                                resolve();
+                            }
+                        });
+                    });
+                } catch (err) {
+                    errors.push({ msg: `Failed to save image${i + 1}: ${err.message}` });
+                }
               } else {
                 const error = {};
                 error["msg"] = `image${i + 1} has invalid ${extension} type`;
@@ -81,8 +101,19 @@ class Product {
                   .status(201)
                   .json({ msg: "Product has created", response });
               } catch (error) {
-                console.log(error);
-                return res.status(500).json(error);
+                console.error('Error creating product:', error);
+                // Clean up any uploaded images if product creation fails
+                Object.values(images).forEach(imageName => {
+                    const imagePath = path.join(__dirname, '..', 'client', 'public', 'images', imageName);
+                    try {
+                        fs.unlinkSync(imagePath);
+                    } catch (unlinkError) {
+                        console.error('Error cleaning up image:', unlinkError);
+                    }
+                });
+                return res.status(500).json({ 
+                    errors: [{ msg: 'Failed to create product: ' + (error.message || 'Unknown error') }] 
+                });
               }
             } else {
               return res.status(400).json({ errors });
@@ -169,10 +200,10 @@ class Product {
         console.log(key);
         let image = product[key];
         let __dirname = path.resolve();
-        let imagePath = __dirname + `/../client/public/images/${image}`;
+        let imagePath = path.join(__dirname, '..', 'client', 'public', 'images', image);
         fs.unlink(imagePath, (err) => {
           if (err) {
-            throw new Error(err);
+            console.error(`Error deleting image ${key}:`, err);
           }
         });
       });

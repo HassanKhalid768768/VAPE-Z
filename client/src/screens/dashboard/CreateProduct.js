@@ -78,32 +78,117 @@ const CreateProduct = () => {
     }
     const [createNewProduct, response] = useCProductMutation();
     console.log('Your response', response)
-    const createPro = e => {
+    const createPro = async (e) => {
         e.preventDefault();
+        
+        if (response.isLoading) {
+            return; // Prevent multiple submissions
+        }
+        
+        // Add file type validation before submission
+        const validateImage = (file) => {
+            if (!file) return false;
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+            return validTypes.includes(file.type);
+        };
+
+        // Validate required fields
+        if (!state.title.trim()) {
+            return toast.error("Title is required");
+        }
+        if (parseInt(state.price) <= 0) {
+            return toast.error("Price should be above $0");
+        }
+        if (parseInt(state.discount) < 0) {
+            return toast.error("Discount should not be negative");
+        }
+        if (parseInt(state.stock) <= 20) {
+            return toast.error("Stock should be above 20");
+        }
+        if (!state.category) {
+            return toast.error("Please select a category");
+        }
+        if (!state.image1 || !state.image2 || !state.image3) {
+            return toast.error("All three images are required");
+        }
+        if (!validateImage(state.image1) || !validateImage(state.image2) || !validateImage(state.image3)) {
+            return toast.error("Please upload valid image files (JPEG, JPG, or PNG)");
+        }
+        if (!value.trim()) {
+            return toast.error("Description is required");
+        }
+        
         const formData = new FormData();
-        formData.append('data', JSON.stringify(state));
+        formData.append('data', JSON.stringify({
+            ...state,
+            price: parseInt(state.price),
+            discount: parseInt(state.discount),
+            stock: parseInt(state.stock)
+        }));
         formData.append('sizes', JSON.stringify(sizeList));
-        formData.append('description', value)
-        formData.append('image1', state.image1)
-        formData.append('image2', state.image2)
-        formData.append('image3', state.image3)
-        createNewProduct(formData);
+        formData.append('description', value);
+        formData.append('image1', state.image1);
+        formData.append('image2', state.image2);
+        formData.append('image3', state.image3);
+
+        // Remove the try-catch with unwrap() and use the regular mutation
+        createNewProduct(formData)
+            .then(result => {
+                if (result.error) {
+                    // Handle error from the mutation
+                    const errorMsg = result.error.data?.errors?.[0]?.msg || 'An error occurred while creating the product';
+                    toast.error(errorMsg);
+                    // Reset loading state if needed
+                    setState(prevState => ({ ...prevState }));
+                }
+                // Success will be handled by the useEffect
+            })
+            .catch(err => {
+                // Handle any unexpected errors
+                console.error('Unexpected error:', err);
+                toast.error('An unexpected error occurred. Please try again.');
+                setState(prevState => ({ ...prevState }));
+            });
     }
     useEffect(() => {
-       if(!response.isSuccess) {
-          response?.error?.data?.errors.map(err => {
-              toast.error(err.msg);
-          }) 
-       }
-    }, [response?.error?.data?.errors])
+        if(response.isError) {
+            if(response.error?.data?.errors) {
+                const errors = response.error.data.errors;
+                if(Array.isArray(errors)) {
+                    errors.forEach(err => {
+                        toast.error(err.msg || "Validation error");
+                    });
+                }
+            } else {
+                toast.error("An unexpected error occurred. Please try again.");
+            }
+        }
+    }, [response.isError, response.error])
     const dispatch = useDispatch();
     const navigate = useNavigate();
     useEffect(() => {
         if(response?.isSuccess) {
-            dispatch(setSuccess(response?.data?.msg));
-           navigate('/dashboard/products');
+            try {
+                dispatch(setSuccess(response?.data?.msg));
+                navigate('/dashboard/products');
+            } catch (error) {
+                console.error('Navigation error:', error);
+                toast.error('Error navigating after product creation. Please go back to the products page.');
+            }
         }
-    }, [response?.isSuccess])
+    }, [response?.isSuccess, dispatch, navigate])
+    // Add loading indicator component
+    if (response.isLoading) {
+        return (
+            <Wrapper>
+                <div className="flex items-center justify-center h-screen">
+                    <Spinner />
+                    <span className="ml-2">Creating product...</span>
+                </div>
+            </Wrapper>
+        );
+    }
+    
     return(
         <Wrapper>
             <ScreenHeader>
@@ -178,7 +263,12 @@ const CreateProduct = () => {
                                 <ReactQuill theme="snow" id="description" value={value} onChange={setValue}  placeholder="Description..." />
                                 </div>
                         <div className="w-full p-3">
-                            <input type="submit" value={response.isLoading ? 'loading...' : 'save product'} disabled={response.isLoading ? true: false} className="btn btn-indigo" />
+                            <input 
+                                type="submit" 
+                                value={response.isLoading ? 'Saving...' : 'Save Product'} 
+                                disabled={response.isLoading} 
+                                className={`btn btn-indigo ${response.isLoading ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                            />
                         </div>
                     </div>
                 </form>
