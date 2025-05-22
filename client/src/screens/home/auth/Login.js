@@ -29,9 +29,18 @@ const Login = () => {
        const navigate = useNavigate();
        useEffect(() => {
         if(response.isSuccess) {
-          localStorage.setItem('userToken', response?.data?.token);
-          dispatch(setUserToken(response?.data?.token))
-          navigate('/user');
+          if(response?.data?.admin) {
+            // If user is an admin, show error and prevent access
+            setErrors([{
+              msg: "Admin users cannot access the customer portal. Please use the admin login.",
+              param: "email"
+            }]);
+          } else {
+            // If user is not an admin, proceed with normal login
+            localStorage.setItem('userToken', response?.data?.token);
+            dispatch(setUserToken(response?.data?.token))
+            navigate('/user');
+          }
         }
       }, [response.isSuccess])
     return(

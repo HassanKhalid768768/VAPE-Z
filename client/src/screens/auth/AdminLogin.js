@@ -30,7 +30,7 @@ const AdminLogin = () => {
                 navigate('/dashboard/products');
                 setAdminError('');
             } else {
-                setAdminError('Access denied! You are not authorized as an admin.');
+                setAdminError('Access denied! This portal is for administrators only.');
             }
         }
     }, [dispatch, navigate, response])
